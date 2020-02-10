@@ -1,0 +1,1557 @@
+---
+interact_link: content/schrodinger2.ipynb
+kernel_name: python3
+kernel_path: content
+has_widgets: false
+title: |-
+  Solving Schrodinger's equation
+pagenum: 4
+prev_page:
+  url: /Doppler.html
+next_page:
+  url: 
+suffix: .ipynb
+search: x psi solution e potential our equation v energy phi equations well guess next since schrodinger solutions frac value us method wavefunction means order d however again trial error solve correct large new set differential same define function values thus eg infty state start midpoint harmonic numerically notebook simple shooting recall hbar m partial where not eigenvalue schrodingers derivative align into functions want below taken between square depth lets looks above still dont initial alpha also just action let wrong heads towards try leads note ground single maximum goes zero integral easily normalise bit interval doing sign replace factor w
+
+comment: "***PROGRAMMATICALLY GENERATED, DO NOT EDIT. SEE ORIGINAL FILES IN /content***"
+---
+
+    <main class="jupyter-page">
+    <div id="page-info"><div id="page-title">Solving Schrodinger's equation</div>
+</div>
+    <div class="jb_cell">
+
+<div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h1 id="Numerically-solving-the-Schrodinger-Equation">Numerically solving the Schrodinger Equation<a class="anchor-link" href="#Numerically-solving-the-Schrodinger-Equation"> </a></h1>
+</div>
+</div>
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>This python notebook will show a simple method to find solutions to the Schrodinger equation using what is called the shooting method. Recall that the Schrodinger equation can be written as:</p>
+
+</div>
+</div>
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+$$ -\frac{\hbar^2}{2 m} \frac{\partial^2 \psi}{\partial x^2} +(V(x)- E) \psi =0 $$
+</div>
+</div>
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>where $V(x)$ is the potential and both the energy $E$ and the wavefunction $\psi$ are unknown.
+The fact that we do not know the eigenvalue $E$ means that we have to use trial and error to guess a value for $E$ and the numerically solve Schrodinger's equation to find $\psi(x)$. We will know if our solution is correct if the wavefunction approaches 0 for large $x$.</p>
+<p>To proceed we first change our units so that $\hbar= m=1$ and then add in a new variable $\phi$ which represents the derivative of $\psi$ to give us the set of first order differential equations:</p>
+
+</div>
+</div>
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+$$ \begin{align}
+    \frac{d \psi}{d x} &amp;= \phi(x) \\
+    \frac{d \phi}{d x} &amp;= 2(V(x)-E) \psi(x)
+    \end{align} $$
+</div>
+</div>
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>Recall that we did the same trick in the Cyclotron Motion notebook to convert the 2nd order differential equations into a set of first order differential equations. This means that we can use the inbuilt functions such as 'odeint' to automatically solve the equations for us.</p>
+<p>So first as usual we import the required libraries</p>
+
+</div>
+</div>
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="kn">from</span> <span class="nn">modules</span> <span class="kn">import</span> <span class="n">schrodinger</span> <span class="k">as</span> <span class="n">srod</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">from</span> <span class="nn">mpl_toolkits.mplot3d</span> <span class="kn">import</span> <span class="n">Axes3D</span>
+
+<span class="kn">from</span> <span class="nn">scipy.integrate</span> <span class="kn">import</span> <span class="n">odeint</span>
+
+<span class="o">%</span><span class="k">load_ext</span> autoreload
+<span class="o">%</span><span class="k">autoreload</span> 2
+<span class="o">%</span><span class="k">matplotlib</span> inline
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>Next we define the range over which we want to find the solutions. For the example below this is taken to be between $-20&lt; x &lt;20$ and we split it up into 2000 points.</p>
+
+</div>
+</div>
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">start_position</span><span class="o">=-</span><span class="mf">20.0</span>
+<span class="n">end_position</span><span class="o">=</span><span class="mi">20</span>   <span class="c1">#set this to be the correct end point.</span>
+<span class="n">space_steps</span><span class="o">=</span><span class="mi">2000</span>
+<span class="n">step</span><span class="o">=</span><span class="p">(</span><span class="n">end_position</span><span class="o">-</span><span class="n">start_position</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">space_steps</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">space</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">start_position</span><span class="p">,</span><span class="n">end_position</span><span class="p">,</span><span class="n">space_steps</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>Next we define our potential function. This can be an arbitrary function but here I have taken it to be a square well with a negative depth and lying symmetrically about $x=0$.</p>
+
+</div>
+</div>
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">potential</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">depth</span><span class="p">,</span><span class="n">width</span><span class="p">):</span>  <span class="c1">#square well potential</span>
+    <span class="n">pot</span><span class="o">=</span><span class="mf">0.0</span>
+    <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">&lt;=</span><span class="n">width</span><span class="o">/</span><span class="mi">2</span><span class="p">:</span>
+        <span class="n">pot</span><span class="o">=</span><span class="n">depth</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">pot</span><span class="o">=</span><span class="mf">0.0</span>
+    <span class="k">return</span> <span class="n">pot</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>Lets plot the potential so that we know what it looks like.</p>
+
+</div>
+</div>
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">potfun</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">space_steps</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">ii</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="n">space_steps</span><span class="p">):</span>
+    <span class="n">potfun</span><span class="p">[</span><span class="n">ii</span><span class="p">]</span><span class="o">=</span><span class="n">potential</span><span class="p">(</span><span class="n">space</span><span class="p">[</span><span class="n">ii</span><span class="p">],</span><span class="o">-</span><span class="mi">4</span><span class="p">,</span><span class="mi">30</span><span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">space</span><span class="p">,</span><span class="n">potfun</span><span class="p">,</span><span class="n">linewidth</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;potential&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+<div class="jb_output_wrapper }}">
+<div class="output_area">
+
+
+
+<div class="output_png output_subarea ">
+<img src="images/schrodinger2_12_0.png"
+>
+</div>
+
+</div>
+</div>
+</div>
+</div>
+
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>Now we define the derivatives functions for the equations above. These are the equations that we want to solve.</p>
+
+</div>
+</div>
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">shoot</span><span class="p">(</span><span class="n">yin</span><span class="p">,</span><span class="n">position</span><span class="p">,</span><span class="n">depth</span><span class="p">,</span><span class="n">width</span><span class="p">,</span><span class="n">energy</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">yin</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+                     <span class="mf">2.0</span> <span class="o">*</span> <span class="p">(</span><span class="n">potential</span><span class="p">(</span><span class="n">position</span><span class="p">,</span><span class="n">depth</span><span class="p">,</span><span class="n">width</span><span class="p">)</span><span class="o">-</span><span class="n">energy</span><span class="p">)</span> <span class="o">*</span> <span class="n">yin</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>Now we still don't know the initial values for $\psi(-20)$ and $\phi(-20)$ since we don't know the energy eigenvalue. However the Schrodinger equation is linear which means that we are free to set $\psi(-20)=1$ since if $\psi(x)$ is a solution so is $\alpha \psi(x)$ for any complex number $\alpha$. We also know that $\psi(x)$ decays exponentially if the energy is less than the potential and that the rate of decay is given by $V(x)-E$. Thus we can approximate the derivative of $psi(x)$ (i.e. $\phi(x)$) as $\phi(x) \approx (V(x)-E) \psi(x)$.</p>
+<p>We then guess an energy level $E_g$ which means that the initially
+$\phi(-20)=(V(-20)-E_g)$. Since for the square well potential $V(-20)=0$ this just becomes $\phi(-20)=-E_g$.</p>
+
+</div>
+</div>
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>The Shooting method thus involves guessing an initial value of the energy and integrating the equations to see if it that value is correct. To see this in action let us use a potential well with a depth of -5 and a width of 30. This ensures that there are plenty of solutions to the Schrodinger equation. Our first guess will be that E=-4.9896.</p>
+
+</div>
+</div>
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">energy_guess</span><span class="o">=-</span><span class="mf">3.999</span>  <span class="c1">#this is our initial guess.</span>
+<span class="n">start</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="o">-</span><span class="n">energy_guess</span><span class="p">)])</span>
+
+<span class="n">xout</span><span class="o">=</span><span class="n">odeint</span><span class="p">(</span><span class="n">shoot</span><span class="p">,</span><span class="n">start</span><span class="p">,</span><span class="n">space</span><span class="p">,</span><span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">4.0</span><span class="p">,</span><span class="mi">30</span><span class="p">,</span><span class="n">energy_guess</span><span class="p">))</span>
+<span class="n">xt</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">xout</span><span class="p">)</span>
+<span class="n">psi</span><span class="o">=</span><span class="n">xt</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">psiprime</span><span class="o">=</span><span class="n">xt</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+<span class="n">srod</span><span class="o">.</span><span class="n">plot_potential</span><span class="p">(</span><span class="n">psi</span><span class="p">,</span><span class="n">psiprime</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+<div class="jb_output_wrapper }}">
+<div class="output_area">
+
+
+
+<div class="output_png output_subarea ">
+<img src="images/schrodinger2_17_0.png"
+>
+</div>
+
+</div>
+</div>
+</div>
+</div>
+
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>Notice that the solution is clearly wrong since it heads towards $\infty$ for large $x$. So
+we can amend our guess of the energy for something larger and try again.</p>
+
+</div>
+</div>
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">energy_guess</span><span class="o">=-</span><span class="mf">3.99</span> <span class="c1">#this is our second guess.</span>
+<span class="n">start</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="o">-</span><span class="n">energy_guess</span><span class="p">)])</span>
+
+<span class="n">xout</span><span class="o">=</span><span class="n">odeint</span><span class="p">(</span><span class="n">shoot</span><span class="p">,</span><span class="n">start</span><span class="p">,</span><span class="n">space</span><span class="p">,</span><span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">4.0</span><span class="p">,</span><span class="mi">30</span><span class="p">,</span><span class="n">energy_guess</span><span class="p">))</span>
+<span class="n">xt</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">xout</span><span class="p">)</span>
+<span class="n">psi</span><span class="o">=</span><span class="n">xt</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">psiprime</span><span class="o">=</span><span class="n">xt</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+<span class="n">srod</span><span class="o">.</span><span class="n">plot_potential</span><span class="p">(</span><span class="n">psi</span><span class="p">,</span><span class="n">psiprime</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+<div class="jb_output_wrapper }}">
+<div class="output_area">
+
+
+
+<div class="output_png output_subarea ">
+<img src="images/schrodinger2_19_0.png"
+>
+</div>
+
+</div>
+</div>
+</div>
+</div>
+
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>Now the solution is still wrong but it heads towards $-\infty$ for large $x$. We can thus say that the correct value for the energy must lie between our two solutions and all we have to do is find it. Trial and error leads to the solution below.</p>
+
+</div>
+</div>
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">energy_guess</span><span class="o">=-</span><span class="mf">3.9947665559297138316</span>  <span class="c1">#this is ground state</span>
+<span class="n">start</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="o">-</span><span class="n">energy_guess</span><span class="p">)])</span>
+
+<span class="n">xout</span><span class="o">=</span><span class="n">odeint</span><span class="p">(</span><span class="n">shoot</span><span class="p">,</span><span class="n">start</span><span class="p">,</span><span class="n">space</span><span class="p">,</span><span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">4.0</span><span class="p">,</span><span class="mi">30</span><span class="p">,</span><span class="n">energy_guess</span><span class="p">))</span>
+<span class="n">xt</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">xout</span><span class="p">)</span>
+<span class="n">psi</span><span class="o">=</span><span class="n">xt</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">psiprime</span><span class="o">=</span><span class="n">xt</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+<span class="n">srod</span><span class="o">.</span><span class="n">plot_potential</span><span class="p">(</span><span class="n">psi</span><span class="p">,</span><span class="n">psiprime</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+<div class="jb_output_wrapper }}">
+<div class="output_area">
+
+
+
+<div class="output_png output_subarea ">
+<img src="images/schrodinger2_21_0.png"
+>
+</div>
+
+</div>
+</div>
+</div>
+</div>
+
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>Note that as expected the ground state wavefunction has a single maximum and goes to zero as the distance from the well increases. It is clear however that the wavefunction is not normalised i.e. the integral of $|\psi(x)|^2 \neq 1$. However since this is just a number we can easily calculate the integral of the solution above and divide through by that to normalise everything.</p>
+
+</div>
+</div>
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">normalise</span><span class="p">(</span><span class="n">y</span><span class="p">,</span><span class="n">step</span><span class="p">):</span>  <span class="c1">#a quick and dirty integrator that is good enough.</span>
+    <span class="n">out</span><span class="o">=</span><span class="mf">0.0</span>
+    <span class="k">for</span> <span class="n">ii</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">)):</span>
+        <span class="n">out</span><span class="o">=</span><span class="n">out</span><span class="o">+</span><span class="n">y</span><span class="p">[</span><span class="n">ii</span><span class="p">]</span><span class="o">*</span><span class="n">y</span><span class="p">[</span><span class="n">ii</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">out</span><span class="o">*</span><span class="n">step</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">result</span><span class="o">=</span><span class="n">normalise</span><span class="p">(</span><span class="n">psi</span><span class="p">,</span><span class="n">step</span><span class="p">)</span>
+
+<span class="n">psi</span><span class="o">=</span><span class="n">psi</span><span class="o">/</span><span class="n">result</span>
+<span class="n">psiprime</span><span class="o">=</span><span class="n">psiprime</span><span class="o">/</span><span class="n">result</span>
+
+<span class="n">srod</span><span class="o">.</span><span class="n">plot_potential_with_scaled</span><span class="p">(</span><span class="n">psi</span><span class="p">,</span><span class="n">psiprime</span><span class="p">,</span> <span class="n">potfun</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+<div class="jb_output_wrapper }}">
+<div class="output_area">
+
+
+
+<div class="output_png output_subarea ">
+<img src="images/schrodinger2_24_0.png"
+>
+</div>
+
+</div>
+</div>
+</div>
+</div>
+
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>A bit more trial and error leads to the next guess for the energy of the first higher order state.</p>
+
+</div>
+</div>
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">energy_guess</span><span class="o">=-</span><span class="mf">3.9790668560912517</span>  <span class="c1">#this is first higher order state</span>
+<span class="n">start</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="o">-</span><span class="n">energy_guess</span><span class="p">)])</span>
+
+<span class="n">xout</span><span class="o">=</span><span class="n">odeint</span><span class="p">(</span><span class="n">shoot</span><span class="p">,</span><span class="n">start</span><span class="p">,</span><span class="n">space</span><span class="p">,</span><span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">4.0</span><span class="p">,</span><span class="mi">30</span><span class="p">,</span><span class="n">energy_guess</span><span class="p">))</span>
+<span class="n">xt</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">xout</span><span class="p">)</span>
+<span class="n">psi</span><span class="o">=</span><span class="n">xt</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">psiprime</span><span class="o">=</span><span class="n">xt</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+<span class="n">result</span><span class="o">=</span><span class="n">normalise</span><span class="p">(</span><span class="n">psi</span><span class="p">,</span><span class="n">step</span><span class="p">)</span>
+
+<span class="n">psi</span><span class="o">=</span><span class="n">psi</span><span class="o">/</span><span class="n">result</span>
+<span class="n">psiprime</span><span class="o">=</span><span class="n">psiprime</span><span class="o">/</span><span class="n">result</span>
+
+<span class="n">srod</span><span class="o">.</span><span class="n">plot_potential_with_scaled</span><span class="p">(</span><span class="n">psi</span><span class="p">,</span><span class="n">psiprime</span><span class="p">,</span> <span class="n">potfun</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+<div class="jb_output_wrapper }}">
+<div class="output_area">
+
+
+
+<div class="output_png output_subarea ">
+<img src="images/schrodinger2_26_0.png"
+>
+</div>
+
+</div>
+</div>
+</div>
+</div>
+
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>It very quickly gets complicated to continually bisect the interval to find new
+solutions. However it is fairly easy to write a program that does that for us. There are lots of different ways of doing so since it is the same as finding the zero of a function but this is perhaps the simplest. We start with two values $E_1$ and $E_2$ which have the property that
+the solution to the equation goes to $\pm \infty$ for the two values and then we look at the
+sign of the solution at the midpoint.</p>
+<p>If the sign of the solution at the midpoint is the same value as $E_1$ we replace $E_1$ by
+$(E_1+E_2)/2$ and start again. Otherwise we replace $E_2$ by the midpoint and start again. 
+Each time we do this the size of the interval decreases by a factor of 2 so we can continue doing it for as long as we like. In practice we stop when we run out of numerical precision.</p>
+
+</div>
+</div>
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">find</span><span class="p">(</span><span class="n">start</span><span class="p">,</span><span class="n">stop</span><span class="p">):</span> <span class="c1">#make sure that the solution goes in different directions for the two values of start and stop</span>
+    
+    <span class="n">guess_history</span> <span class="o">=</span> <span class="p">[]</span>
+    
+    <span class="n">out1</span><span class="o">=</span><span class="n">odeint</span><span class="p">(</span><span class="n">shoot</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="o">-</span><span class="n">start</span><span class="p">)]),</span><span class="n">space</span><span class="p">,</span><span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">4.0</span><span class="p">,</span><span class="mi">30</span><span class="p">,</span><span class="n">start</span><span class="p">))[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="c1">#out1 is the final value of our trial solution for the guess Energy=start</span>
+    <span class="c1"># the element [-1][0] picks the last element in the array.</span>
+    <span class="n">out2</span><span class="o">=</span><span class="n">odeint</span><span class="p">(</span><span class="n">shoot</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="o">-</span><span class="n">stop</span><span class="p">)]),</span><span class="n">space</span><span class="p">,</span><span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">4.0</span><span class="p">,</span><span class="mi">30</span><span class="p">,</span><span class="n">stop</span><span class="p">))[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="c1">#out2 is the final value of our trial solution for the guess Energy=stop.</span>
+    <span class="n">guess</span><span class="o">=</span><span class="p">(</span><span class="n">stop</span><span class="o">+</span><span class="n">start</span><span class="p">)</span><span class="o">/</span><span class="mf">2.0</span>
+    <span class="c1">#guess is the midpoint of the interval.</span>
+    <span class="n">out3</span><span class="o">=</span><span class="n">odeint</span><span class="p">(</span><span class="n">shoot</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="o">-</span><span class="n">guess</span><span class="p">)]),</span><span class="n">space</span><span class="p">,</span><span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">4.0</span><span class="p">,</span><span class="mi">30</span><span class="p">,</span><span class="n">guess</span><span class="p">))[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="c1">#out3 is the final value of the trial solution for the guess Energy=guess.</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">out1</span><span class="p">,</span><span class="n">out2</span><span class="p">,</span><span class="n">out3</span><span class="p">)</span> <span class="c1">#prints out the three values. Check that two of them have different signs.</span>
+    <span class="n">count</span><span class="o">=</span><span class="mi">1</span>
+    <span class="k">while</span> <span class="n">count</span><span class="o">&lt;</span><span class="mi">50</span><span class="p">:</span>
+        <span class="n">guess_history</span> <span class="o">+=</span> <span class="p">[</span><span class="n">guess</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">out1</span><span class="p">)</span><span class="o">==</span><span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">out3</span><span class="p">):</span>
+            <span class="n">start</span><span class="o">=</span><span class="n">guess</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">stop</span><span class="o">=</span><span class="n">guess</span>
+        <span class="n">out1</span><span class="o">=</span><span class="n">odeint</span><span class="p">(</span><span class="n">shoot</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="o">-</span><span class="n">start</span><span class="p">)]),</span><span class="n">space</span><span class="p">,</span><span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">4.0</span><span class="p">,</span><span class="mi">30</span><span class="p">,</span><span class="n">start</span><span class="p">))[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">out2</span><span class="o">=</span><span class="n">odeint</span><span class="p">(</span><span class="n">shoot</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="o">-</span><span class="n">stop</span><span class="p">)]),</span><span class="n">space</span><span class="p">,</span><span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">4.0</span><span class="p">,</span><span class="mi">30</span><span class="p">,</span><span class="n">stop</span><span class="p">))[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">guess</span><span class="o">=</span><span class="p">(</span><span class="n">stop</span><span class="o">+</span><span class="n">start</span><span class="p">)</span><span class="o">/</span><span class="mf">2.0</span>
+        <span class="n">out3</span><span class="o">=</span><span class="n">odeint</span><span class="p">(</span><span class="n">shoot</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="o">-</span><span class="n">guess</span><span class="p">)]),</span><span class="n">space</span><span class="p">,</span><span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">4.0</span><span class="p">,</span><span class="mi">30</span><span class="p">,</span><span class="n">guess</span><span class="p">))[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">out1</span><span class="p">,</span><span class="n">out2</span><span class="p">,</span><span class="n">out3</span><span class="p">)</span>
+        <span class="n">count</span><span class="o">=</span><span class="n">count</span><span class="o">+</span><span class="mi">1</span>
+    <span class="k">return</span> <span class="n">guess</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>Let us see it in action</p>
+
+</div>
+</div>
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">find</span><span class="p">(</span><span class="o">-</span><span class="mf">3.95</span><span class="p">,</span><span class="o">-</span><span class="mf">3.979</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+<div class="jb_output_wrapper }}">
+<div class="output_area">
+
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>-1744967115100.331 105633103236.28992 7299012122453.463
+-1744967115100.331 7299012122453.463 2953906107718.908
+-1744967115100.331 2953906107718.908 471129471800.4718
+-1744967115100.331 471129471800.4718 -686147163856.9746
+-686147163856.9746 471129471800.4718 -118073263335.51231
+-118073263335.51231 471129471800.4718 174115288226.37595
+-118073263335.51231 174115288226.37595 27387130021.854332
+-118073263335.51231 27387130021.854332 -45505278032.6977
+-45505278032.6977 27387130021.854332 -9099303872.946432
+-9099303872.946432 27387130021.854332 9133888377.903614
+-9099303872.946432 9133888377.903614 14751060.585932188
+-9099303872.946432 14751060.585932188 -4543019956.187528
+-4543019956.187528 14751060.585932188 -2264180250.678487
+-2264180250.678487 14751060.585932188 -1124790949.6469371
+-1124790949.6469371 14751060.585932188 -554902506.8224987
+-554902506.8224987 14751060.585932188 -270009748.22298783
+-270009748.22298783 14751060.585932188 -127638851.10172665
+-127638851.10172665 14751060.585932188 -56374977.5741384
+-56374977.5741384 14751060.585932188 -20841830.88934958
+-20841830.88934958 14751060.585932188 -2953223.64831352
+-2953223.64831352 14751060.585932188 5851314.066963364
+-2953223.64831352 5851314.066963364 1409798.2791908712
+-2953223.64831352 1409798.2791908712 -829765.8116982791
+-829765.8116982791 1409798.2791908712 291806.87678016856
+-829765.8116982791 291806.87678016856 -242102.23819819547
+-242102.23819819547 291806.87678016856 -11372.46488690855
+-11372.46488690855 291806.87678016856 114726.54564886597
+-11372.46488690855 114726.54564886597 71947.82222666629
+-11372.46488690855 71947.82222666629 -39667.36839320187
+-39667.36839320187 71947.82222666629 108634.99135769294
+-39667.36839320187 108634.99135769294 74172.18397893677
+-39667.36839320187 74172.18397893677 60265.4423351881
+-39667.36839320187 60265.4423351881 3203.8008691669875
+-39667.36839320187 3203.8008691669875 53773.77009893676
+-39667.36839320187 53773.77009893676 84760.72932400262
+-39667.36839320187 84760.72932400262 41847.15312029682
+-39667.36839320187 41847.15312029682 5387.082479344883
+-39667.36839320187 5387.082479344883 82474.17637523683
+-39667.36839320187 82474.17637523683 51537.827073189954
+-39667.36839320187 51537.827073189954 41437.3545270951
+-39667.36839320187 41437.3545270951 107459.05310711559
+-39667.36839320187 107459.05310711559 137272.50957174035
+-39667.36839320187 137272.50957174035 -7134.262470206521
+-7134.262470206521 137272.50957174035 51572.73416431848
+-7134.262470206521 51572.73416431848 87407.53747049415
+-7134.262470206521 87407.53747049415 48176.27841285179
+-7134.262470206521 48176.27841285179 -7134.262470206521
+-7134.262470206521 48176.27841285179 -7134.262470206521
+-7134.262470206521 48176.27841285179 -7134.262470206521
+-7134.262470206521 48176.27841285179 -7134.262470206521
+</pre>
+</div>
+</div>
+</div>
+<div class="jb_output_wrapper }}">
+<div class="output_area">
+
+
+
+<div class="output_text output_subarea output_execute_result">
+<pre>-3.952902809182185</pre>
+</div>
+
+</div>
+</div>
+</div>
+</div>
+
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">energy_guess</span><span class="o">=-</span><span class="mf">3.952902809182185</span>  <span class="c1">#this is 2nd higher order state</span>
+<span class="n">start</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="o">-</span><span class="n">energy_guess</span><span class="p">)])</span>
+
+<span class="n">xout</span><span class="o">=</span><span class="n">odeint</span><span class="p">(</span><span class="n">shoot</span><span class="p">,</span><span class="n">start</span><span class="p">,</span><span class="n">space</span><span class="p">,</span><span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">4.0</span><span class="p">,</span><span class="mi">30</span><span class="p">,</span><span class="n">energy_guess</span><span class="p">))</span>
+<span class="n">xt</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">xout</span><span class="p">)</span>
+<span class="n">psi</span><span class="o">=</span><span class="n">xt</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">psiprime</span><span class="o">=</span><span class="n">xt</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+<span class="n">result</span><span class="o">=</span><span class="n">normalise</span><span class="p">(</span><span class="n">psi</span><span class="p">,</span><span class="n">step</span><span class="p">)</span>
+
+<span class="n">psi</span><span class="o">=</span><span class="n">psi</span><span class="o">/</span><span class="n">result</span>
+<span class="n">psiprime</span><span class="o">=</span><span class="n">psiprime</span><span class="o">/</span><span class="n">result</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">space</span><span class="p">,</span><span class="n">psi</span><span class="p">,</span><span class="n">linewidth</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;wavefunction&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">space</span><span class="p">,</span><span class="n">psiprime</span><span class="p">,</span><span class="n">linewidth</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;derivative&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">space</span><span class="p">,</span><span class="n">potfun</span><span class="o">/</span><span class="mi">10</span><span class="o">+</span><span class="mf">0.5</span><span class="p">,</span><span class="n">linewidth</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;scaled potential&#39;</span><span class="p">)</span> <span class="c1">#show the potential well as well</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+<div class="jb_output_wrapper }}">
+<div class="output_area">
+
+
+
+<div class="output_png output_subarea ">
+<img src="images/schrodinger2_31_0.png"
+>
+</div>
+
+</div>
+</div>
+</div>
+</div>
+
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">find</span><span class="p">(</span><span class="o">-</span><span class="mf">2.80</span><span class="p">,</span><span class="o">-</span><span class="mf">2.90</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+<div class="jb_output_wrapper }}">
+<div class="output_area">
+
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>-8627289965.66353 27482641183.189182 10463861579.645903
+-8627289965.66353 10463861579.645903 -213681577.96120825
+-213681577.96120825 10463861579.645903 4981086165.034752
+-213681577.96120825 4981086165.034752 2327475397.2042403
+-213681577.96120825 2327475397.2042403 1040547938.8302509
+-213681577.96120825 1040547938.8302509 409074357.8933233
+-213681577.96120825 409074357.8933233 96575249.16202654
+-213681577.96120825 96575249.16202654 -58838116.33315771
+-58838116.33315771 96575249.16202654 18797545.961560823
+-58838116.33315771 18797545.961560823 -20038774.6813075
+-20038774.6813075 18797545.961560823 -624096.3457697224
+-624096.3457697224 18797545.961560823 9084212.61168502
+-624096.3457697224 9084212.61168502 4230317.0502651045
+-624096.3457697224 4230317.0502651045 1803265.0175172621
+-624096.3457697224 1803265.0175172621 589213.1716891435
+-624096.3457697224 589213.1716891435 -18639.7616914235
+-18639.7616914235 589213.1716891435 285735.45892731746
+-18639.7616914235 285735.45892731746 133892.80690050896
+-18639.7616914235 133892.80690050896 58411.05594979206
+-18639.7616914235 58411.05594979206 20734.219338076662
+-18639.7616914235 20734.219338076662 689.7508671104788
+-18639.7616914235 689.7508671104788 -8477.792236893849
+-8477.792236893849 689.7508671104788 -4631.935421867289
+-4631.935421867289 689.7508671104788 -969.2742864586493
+-969.2742864586493 689.7508671104788 847.1679125394058
+-969.2742864586493 847.1679125394058 -1560.719351937237
+-1560.719351937237 847.1679125394058 1194.036225020797
+-1560.719351937237 1194.036225020797 -463.5344793945988
+-463.5344793945988 1194.036225020797 -478.28810482004934
+-478.28810482004934 1194.036225020797 -1054.796235153298
+-1054.796235153298 1194.036225020797 -274.7651173081019
+-274.7651173081019 1194.036225020797 181.9042599506408
+-274.7651173081019 181.9042599506408 149.4580363053896
+-274.7651173081019 149.4580363053896 -980.6095445665718
+-980.6095445665718 149.4580363053896 -1063.951570367178
+-1063.951570367178 149.4580363053896 273.9337975440242
+-1063.951570367178 273.9337975440242 -127.20920345649985
+-127.20920345649985 273.9337975440242 620.7361878721142
+-127.20920345649985 620.7361878721142 -1428.786313759811
+-1428.786313759811 620.7361878721142 -742.0416665633247
+-742.0416665633247 620.7361878721142 177.6832311997982
+-742.0416665633247 177.6832311997982 559.3261662695481
+-742.0416665633247 559.3261662695481 -629.3185641017003
+-629.3185641017003 559.3261662695481 239.26424509992455
+-629.3185641017003 239.26424509992455 -1088.4345086891637
+-1088.4345086891637 239.26424509992455 -132.138754220633
+-132.138754220633 239.26424509992455 297.3002986756072
+-132.138754220633 297.3002986756072 -561.028433863704
+-561.028433863704 297.3002986756072 297.3002986756072
+-561.028433863704 297.3002986756072 297.3002986756072
+</pre>
+</div>
+</div>
+</div>
+<div class="jb_output_wrapper }}">
+<div class="output_area">
+
+
+
+<div class="output_text output_subarea output_execute_result">
+<pre>-2.825538679175513</pre>
+</div>
+
+</div>
+</div>
+</div>
+</div>
+
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">energy_guess</span><span class="o">=-</span><span class="mf">2.825538679175513</span>  <span class="c1">#which state is this?</span>
+<span class="n">start</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="o">-</span><span class="n">energy_guess</span><span class="p">)])</span>
+
+<span class="n">xout</span><span class="o">=</span><span class="n">odeint</span><span class="p">(</span><span class="n">shoot</span><span class="p">,</span><span class="n">start</span><span class="p">,</span><span class="n">space</span><span class="p">,</span><span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">4.0</span><span class="p">,</span><span class="mi">30</span><span class="p">,</span><span class="n">energy_guess</span><span class="p">))</span>
+<span class="n">xt</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">xout</span><span class="p">)</span>
+<span class="n">psi</span><span class="o">=</span><span class="n">xt</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">psiprime</span><span class="o">=</span><span class="n">xt</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+<span class="n">result</span><span class="o">=</span><span class="n">normalise</span><span class="p">(</span><span class="n">psi</span><span class="p">,</span><span class="n">step</span><span class="p">)</span>
+
+<span class="n">psi</span><span class="o">=</span><span class="n">psi</span><span class="o">/</span><span class="n">result</span>
+<span class="n">psiprime</span><span class="o">=</span><span class="n">psiprime</span><span class="o">/</span><span class="n">result</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">space</span><span class="p">,</span><span class="n">psi</span><span class="p">,</span><span class="n">linewidth</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;wavefunction&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">space</span><span class="p">,</span><span class="n">psiprime</span><span class="p">,</span><span class="n">linewidth</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;derivative&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">space</span><span class="p">,</span><span class="n">potfun</span><span class="o">/</span><span class="mi">8</span><span class="o">+</span><span class="mf">0.5</span><span class="p">,</span><span class="n">linewidth</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;scaled potential&#39;</span><span class="p">)</span> <span class="c1">#show the potential well as well</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+<div class="jb_output_wrapper }}">
+<div class="output_area">
+
+
+
+<div class="output_png output_subarea ">
+<img src="images/schrodinger2_33_0.png"
+>
+</div>
+
+</div>
+</div>
+</div>
+</div>
+
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h2 id="Simple-Harmonic-Potential">Simple Harmonic Potential<a class="anchor-link" href="#Simple-Harmonic-Potential"> </a></h2>
+</div>
+</div>
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>In class we have also looked at a harmonic potential well defined by</p>
+
+</div>
+</div>
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+$$ V(x) =\frac{x^2}{w^2} $$
+</div>
+</div>
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>where $w$ defines the steepness of the well. We can easily adapt our code to find the wavefunctions for this case as well.</p>
+
+</div>
+</div>
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">potential</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">width</span><span class="p">):</span>  <span class="c1">#harmonic potential well</span>
+    <span class="k">return</span> <span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="o">/</span><span class="p">(</span><span class="n">width</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">ii</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="n">space_steps</span><span class="p">):</span>
+    <span class="n">potfun</span><span class="p">[</span><span class="n">ii</span><span class="p">]</span><span class="o">=</span><span class="n">potential</span><span class="p">(</span><span class="n">space</span><span class="p">[</span><span class="n">ii</span><span class="p">],</span><span class="mi">10</span><span class="p">)</span>
+    
+<span class="k">def</span> <span class="nf">shoot</span><span class="p">(</span><span class="n">yin</span><span class="p">,</span><span class="n">position</span><span class="p">,</span><span class="n">width</span><span class="p">,</span><span class="n">energy</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">yin</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="mf">2.0</span><span class="o">*</span><span class="p">(</span><span class="n">potential</span><span class="p">(</span><span class="n">position</span><span class="p">,</span><span class="n">width</span><span class="p">)</span><span class="o">-</span><span class="n">energy</span><span class="p">)</span><span class="o">*</span><span class="n">yin</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">find_harmonic</span><span class="p">(</span><span class="n">start</span><span class="p">,</span><span class="n">stop</span><span class="p">,</span><span class="n">width</span><span class="p">):</span> <span class="c1">#make sure that the solution goes in different directions for the two values of start and stop</span>
+    <span class="n">out1</span><span class="o">=</span><span class="n">odeint</span><span class="p">(</span><span class="n">shoot</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">potential</span><span class="p">(</span><span class="o">-</span><span class="mi">20</span><span class="p">,</span><span class="n">width</span><span class="p">)</span><span class="o">-</span><span class="n">start</span><span class="p">)]),</span><span class="n">space</span><span class="p">,</span><span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">width</span><span class="p">,</span><span class="n">start</span><span class="p">))[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="c1">#out1 is the final value of our trial solution for the guess Energy=start</span>
+    <span class="c1"># the element [-1][0] picks the last element in the array.</span>
+    <span class="n">out2</span><span class="o">=</span><span class="n">odeint</span><span class="p">(</span><span class="n">shoot</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">potential</span><span class="p">(</span><span class="o">-</span><span class="mi">20</span><span class="p">,</span><span class="n">width</span><span class="p">)</span><span class="o">-</span><span class="n">stop</span><span class="p">)]),</span><span class="n">space</span><span class="p">,</span><span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">width</span><span class="p">,</span><span class="n">stop</span><span class="p">))[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="c1">#out2 is the final value of our trial solution for the guess Energy=stop.</span>
+    <span class="n">guess</span><span class="o">=</span><span class="p">(</span><span class="n">stop</span><span class="o">+</span><span class="n">start</span><span class="p">)</span><span class="o">/</span><span class="mf">2.0</span>
+    <span class="c1">#guess is the midpoint of the interval.</span>
+    <span class="n">out3</span><span class="o">=</span><span class="n">odeint</span><span class="p">(</span><span class="n">shoot</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">potential</span><span class="p">(</span><span class="o">-</span><span class="mi">20</span><span class="p">,</span><span class="n">width</span><span class="p">)</span><span class="o">-</span><span class="n">guess</span><span class="p">)]),</span><span class="n">space</span><span class="p">,</span><span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">width</span><span class="p">,</span><span class="n">guess</span><span class="p">))[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="c1">#out3 is the final value of the trial solution for the guess Energy=guess.</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">out1</span><span class="p">,</span><span class="n">out2</span><span class="p">,</span><span class="n">out3</span><span class="p">)</span> <span class="c1">#prints out the three values. Check that two of them have different signs.</span>
+    <span class="n">count</span><span class="o">=</span><span class="mi">1</span>
+    <span class="k">while</span> <span class="n">count</span><span class="o">&lt;</span><span class="mi">50</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">out1</span><span class="p">)</span><span class="o">==</span><span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">out3</span><span class="p">):</span>
+            <span class="n">start</span><span class="o">=</span><span class="n">guess</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">stop</span><span class="o">=</span><span class="n">guess</span>
+        <span class="n">out1</span><span class="o">=</span><span class="n">odeint</span><span class="p">(</span><span class="n">shoot</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">potential</span><span class="p">(</span><span class="o">-</span><span class="mi">20</span><span class="p">,</span><span class="n">width</span><span class="p">)</span><span class="o">-</span><span class="n">start</span><span class="p">)]),</span><span class="n">space</span><span class="p">,</span><span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">width</span><span class="p">,</span><span class="n">start</span><span class="p">))[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">out2</span><span class="o">=</span><span class="n">odeint</span><span class="p">(</span><span class="n">shoot</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">potential</span><span class="p">(</span><span class="o">-</span><span class="mi">20</span><span class="p">,</span><span class="n">width</span><span class="p">)</span><span class="o">-</span><span class="n">stop</span><span class="p">)]),</span><span class="n">space</span><span class="p">,</span><span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">width</span><span class="p">,</span><span class="n">stop</span><span class="p">))[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">guess</span><span class="o">=</span><span class="p">(</span><span class="n">stop</span><span class="o">+</span><span class="n">start</span><span class="p">)</span><span class="o">/</span><span class="mf">2.0</span>
+        <span class="n">out3</span><span class="o">=</span><span class="n">odeint</span><span class="p">(</span><span class="n">shoot</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">potential</span><span class="p">(</span><span class="o">-</span><span class="mi">20</span><span class="p">,</span><span class="n">width</span><span class="p">)</span><span class="o">-</span><span class="n">guess</span><span class="p">)]),</span><span class="n">space</span><span class="p">,</span><span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">width</span><span class="p">,</span><span class="n">guess</span><span class="p">))[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">out1</span><span class="p">,</span><span class="n">out2</span><span class="p">,</span><span class="n">out3</span><span class="p">)</span>
+        <span class="n">count</span><span class="o">=</span><span class="n">count</span><span class="o">+</span><span class="mi">1</span>
+    <span class="k">return</span> <span class="n">guess</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">find_harmonic</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mf">0.2</span><span class="p">,</span><span class="mi">10</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+<div class="jb_output_wrapper }}">
+<div class="output_area">
+
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>4.4647633375241574e+24 -8.230494884619299e+20 -4.958735363161224e+22
+4.4647633375241574e+24 -4.958735363161224e+22 2.3336693968977845e+23
+2.3336693968977845e+23 -4.958735363161224e+22 -1.9245551958053058e+22
+2.3336693968977845e+23 -1.9245551958053058e+22 5.872442806757342e+22
+5.872442806757342e+22 -1.9245551958053058e+22 1.1124324934537624e+22
+1.1124324934537624e+22 -1.9245551958053058e+22 -5.876946987076946e+21
+1.1124324934537624e+22 -5.876946987076946e+21 2.131047267516304e+21
+2.131047267516304e+21 -5.876946987076946e+21 -1.9910850893427012e+21
+2.131047267516304e+21 -1.9910850893427012e+21 3.983465520778598e+19
+3.983465520778598e+19 -1.9910850893427012e+21 -9.830837350124732e+20
+3.983465520778598e+19 -9.830837350124732e+20 -4.7349945929601476e+20
+3.983465520778598e+19 -4.7349945929601476e+20 -2.1730211251536252e+20
+3.983465520778598e+19 -2.1730211251536252e+20 -8.885133608295945e+19
+3.983465520778598e+19 -8.885133608295945e+19 -2.453778462316834e+19
+3.983465520778598e+19 -2.453778462316834e+19 7.641099187295654e+18
+7.641099187295654e+18 -2.453778462316834e+19 -8.450180888071811e+18
+7.641099187295654e+18 -8.450180888071811e+18 -4.049973484311622e+17
+7.641099187295654e+18 -4.049973484311622e+17 3.617935739181237e+18
+3.617935739181237e+18 -4.049973484311622e+17 1.6064416675011604e+18
+1.6064416675011604e+18 -4.049973484311622e+17 6.007152012654161e+17
+6.007152012654161e+17 -4.049973484311622e+17 9.785730009403517e+16
+9.785730009403517e+16 -4.049973484311622e+17 -1.5357052277642906e+17
+9.785730009403517e+16 -1.5357052277642906e+17 -2.785674527420607e+16
+9.785730009403517e+16 -2.785674527420607e+16 3.5000270170492332e+16
+3.5000270170492332e+16 -2.785674527420607e+16 3571762675438775.0
+3571762675438775.0 -2.785674527420607e+16 -1.2142496456174392e+16
+3571762675438775.0 -1.2142496456174392e+16 -4285366756389223.5
+3571762675438775.0 -4285366756389223.5 -356803276983691.8
+3571762675438775.0 -356803276983691.8 1607480847796034.2
+1607480847796034.2 -356803276983691.8 625338428097234.0
+625338428097234.0 -356803276983691.8 134268151368496.31
+134268151368496.31 -356803276983691.8 -111268013619314.17
+134268151368496.31 -111268013619314.17 11499961267269.916
+11499961267269.916 -111268013619314.17 -49883805486271.24
+11499961267269.916 -49883805486271.24 -19192132390020.445
+11499961267269.916 -19192132390020.445 -3845678296789.5576
+11499961267269.916 -3845678296789.5576 3827438891271.039
+3827438891271.039 -3845678296789.5576 -9115494506.439482
+3827438891271.039 -9115494506.439482 1909126628595.8262
+1909126628595.8262 -9115494506.439482 949858785721.1461
+949858785721.1461 -9115494506.439482 470098313130.16425
+470098313130.16425 -9115494506.439482 230418948824.73953
+230418948824.73953 -9115494506.439482 110594430563.4719
+110594430563.4719 -9115494506.439482 50715269365.0575
+50715269365.0575 -9115494506.439482 20823192812.547245
+20823192812.547245 -9115494506.439482 5771138961.388131
+5771138961.388131 -9115494506.439482 -2064346099.1125522
+5771138961.388131 -2064346099.1125522 1756282278.2682204
+1756282278.2682204 -2064346099.1125522 -73042835.92781049
+1756282278.2682204 -73042835.92781049 857381914.7516198
+</pre>
+</div>
+</div>
+</div>
+<div class="jb_output_wrapper }}">
+<div class="output_area">
+
+
+
+<div class="output_text output_subarea output_execute_result">
+<pre>0.07071067758588272</pre>
+</div>
+
+</div>
+</div>
+</div>
+</div>
+
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">energy_guess</span><span class="o">=</span><span class="mf">0.07071067758588272</span>  <span class="c1">#this is a higher order state</span>
+<span class="n">start</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">potential</span><span class="p">(</span><span class="o">-</span><span class="mi">20</span><span class="p">,</span><span class="mi">10</span><span class="p">)</span><span class="o">-</span><span class="n">energy_guess</span><span class="p">)])</span>
+
+<span class="n">xout</span><span class="o">=</span><span class="n">odeint</span><span class="p">(</span><span class="n">shoot</span><span class="p">,</span><span class="n">start</span><span class="p">,</span><span class="n">space</span><span class="p">,</span><span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="n">energy_guess</span><span class="p">))</span>
+<span class="n">xt</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">xout</span><span class="p">)</span>
+<span class="n">psi</span><span class="o">=</span><span class="n">xt</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">psiprime</span><span class="o">=</span><span class="n">xt</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+<span class="n">psiprime</span><span class="o">=</span><span class="n">xt</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+<span class="n">result</span><span class="o">=</span><span class="n">normalise</span><span class="p">(</span><span class="n">psi</span><span class="p">,</span><span class="n">step</span><span class="p">)</span> 
+
+<span class="n">psi</span><span class="o">=</span><span class="n">psi</span><span class="o">/</span><span class="n">result</span> <span class="c1">#again we normalise the solution.</span>
+<span class="n">psiprime</span><span class="o">=</span><span class="n">psiprime</span><span class="o">/</span><span class="n">result</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">space</span><span class="p">,</span><span class="n">psi</span><span class="p">,</span><span class="n">linewidth</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;wavefunction&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">space</span><span class="p">,</span><span class="n">psiprime</span><span class="p">,</span><span class="n">linewidth</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;derivative&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">space</span><span class="p">,</span><span class="n">potfun</span><span class="o">/</span><span class="mi">10</span><span class="p">,</span><span class="n">linewidth</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;scaled potential&#39;</span><span class="p">)</span> <span class="c1">#show the potential well as well</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+<div class="jb_output_wrapper }}">
+<div class="output_area">
+
+
+
+<div class="output_png output_subarea ">
+<img src="images/schrodinger2_41_0.png"
+>
+</div>
+
+</div>
+</div>
+</div>
+</div>
+
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>It can be seen that this looks like the ground state solution to Schrodinger's equation. It is symmetric about $x=0$ and has a single maximum. Note that as before we normalise the solution.</p>
+<p>If our method works then we should be able to find the next solution which will be anti-symmetric with $\psi(0)=0$ and have two extrema. So lets try a new guess.</p>
+
+</div>
+</div>
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">find_harmonic</span><span class="p">(</span><span class="mf">0.1</span><span class="p">,</span><span class="mf">0.5</span><span class="p">,</span><span class="mi">10</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+<div class="jb_output_wrapper }}">
+<div class="output_area">
+
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>-4.958735363161224e+22 1.083655731039356e+17 1.5576339085134653e+20
+-4.958735363161224e+22 1.5576339085134653e+20 -8.230494884619299e+20
+-8.230494884619299e+20 1.5576339085134653e+20 5.1797588592442186e+20
+-8.230494884619299e+20 5.1797588592442186e+20 4.092131798728768e+20
+-8.230494884619299e+20 4.092131798728768e+20 1.7268095270496283e+19
+-8.230494884619299e+20 1.7268095270496283e+19 -3.327397400431058e+20
+-3.327397400431058e+20 1.7268095270496283e+19 -1.4214361470610422e+20
+-1.4214361470610422e+20 1.7268095270496283e+19 -5.8766468333096845e+19
+-5.8766468333096845e+19 1.7268095270496283e+19 -1.985868977527729e+19
+-1.985868977527729e+19 1.7268095270496283e+19 -1.0760627744017372e+18
+-1.0760627744017372e+18 1.7268095270496283e+19 8.150413406883572e+18
+-1.0760627744017372e+18 8.150413406883572e+18 3.5508365454413916e+18
+-1.0760627744017372e+18 3.5508365454413916e+18 1.2407789878867474e+18
+-1.0760627744017372e+18 1.2407789878867474e+18 8.326729683998517e+16
+-1.0760627744017372e+18 8.326729683998517e+16 -4.962240407620892e+17
+-4.962240407620892e+17 8.326729683998517e+16 -2.0640178551652896e+17
+-2.0640178551652896e+17 8.326729683998517e+16 -6.155607974575682e+16
+-6.155607974575682e+16 8.326729683998517e+16 1.0861600505892384e+16
+-6.155607974575682e+16 1.0861600505892384e+16 -2.5343741140877932e+16
+-2.5343741140877932e+16 1.0861600505892384e+16 -7240871906645070.0
+-7240871906645070.0 1.0861600505892384e+16 1810415590897738.2
+-7240871906645070.0 1810415590897738.2 -2715212193086681.0
+-2715212193086681.0 1810415590897738.2 -452396994254688.1
+-452396994254688.1 1810415590897738.2 679011306482980.8
+-452396994254688.1 679011306482980.8 113308027668720.31
+-452396994254688.1 113308027668720.31 -169544104526056.66
+-169544104526056.66 113308027668720.31 -28116915356141.6
+-28116915356141.6 113308027668720.31 42595329482933.32
+-28116915356141.6 42595329482933.32 7239138434334.369
+-28116915356141.6 7239138434334.369 -10440123915364.678
+-10440123915364.678 7239138434334.369 -1600834445134.342
+-1600834445134.342 7239138434334.369 2819202389563.866
+-1600834445134.342 2819202389563.866 608191559953.1116
+-1600834445134.342 608191559953.1116 -495988536227.2841
+-495988536227.2841 608191559953.1116 55388924194.979485
+-495988536227.2841 55388924194.979485 -219432077600.31897
+-219432077600.31897 55388924194.979485 -80882435372.52975
+-80882435372.52975 55388924194.979485 -11861273041.124191
+-11861273041.124191 55388924194.979485 22707739550.98838
+-11861273041.124191 22707739550.98838 4909076809.197298
+-11861273041.124191 4909076809.197298 -4011385344.3670363
+-4011385344.3670363 4909076809.197298 830786641.8135486
+-4011385344.3670363 830786641.8135486 -2481256069.3079185
+-2481256069.3079185 830786641.8135486 -364424875.3437234
+-364424875.3437234 830786641.8135486 -525134366.64621687
+-525134366.64621687 830786641.8135486 1139609125.1219866
+-525134366.64621687 1139609125.1219866 489915937.18792975
+-525134366.64621687 489915937.18792975 889412583.6468723
+-525134366.64621687 889412583.6468723 -977219014.1864568
+-977219014.1864568 889412583.6468723 649231353.3700473
+</pre>
+</div>
+</div>
+</div>
+<div class="jb_output_wrapper }}">
+<div class="output_area">
+
+
+
+<div class="output_text output_subarea output_execute_result">
+<pre>0.21213203429823696</pre>
+</div>
+
+</div>
+</div>
+</div>
+</div>
+
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">energy_guess</span><span class="o">=</span><span class="mf">0.21213203429823696</span>  <span class="c1">#this is the second eigenvalue</span>
+<span class="n">start</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">potential</span><span class="p">(</span><span class="o">-</span><span class="mi">20</span><span class="p">,</span><span class="mi">10</span><span class="p">)</span><span class="o">-</span><span class="n">energy_guess</span><span class="p">)])</span>
+
+<span class="n">xout</span><span class="o">=</span><span class="n">odeint</span><span class="p">(</span><span class="n">shoot</span><span class="p">,</span><span class="n">start</span><span class="p">,</span><span class="n">space</span><span class="p">,</span><span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="n">energy_guess</span><span class="p">))</span>
+<span class="n">xt</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">xout</span><span class="p">)</span>
+<span class="n">psi</span><span class="o">=</span><span class="n">xt</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">psiprime</span><span class="o">=</span><span class="n">xt</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+<span class="n">result</span><span class="o">=</span><span class="n">normalise</span><span class="p">(</span><span class="n">psi</span><span class="p">,</span><span class="n">step</span><span class="p">)</span> 
+
+<span class="n">psi</span><span class="o">=</span><span class="n">psi</span><span class="o">/</span><span class="n">result</span> <span class="c1">#again we normalise the solution.</span>
+<span class="n">psiprime</span><span class="o">=</span><span class="n">psiprime</span><span class="o">/</span><span class="n">result</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">space</span><span class="p">,</span><span class="n">psi</span><span class="p">,</span><span class="n">linewidth</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;wavefunction&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">space</span><span class="p">,</span><span class="n">psiprime</span><span class="p">,</span><span class="n">linewidth</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;derivative&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">space</span><span class="p">,</span><span class="n">potfun</span><span class="o">/</span><span class="mi">10</span><span class="p">,</span><span class="n">linewidth</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;scaled potential&#39;</span><span class="p">)</span> <span class="c1">#show the potential well as well</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+<div class="jb_output_wrapper }}">
+<div class="output_area">
+
+
+
+<div class="output_png output_subarea ">
+<img src="images/schrodinger2_44_0.png"
+>
+</div>
+
+</div>
+</div>
+</div>
+</div>
+
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>Again our code has found the solution that we expect. We can see that it is quite a bit wider than the fundamental solution. We have scaled the potential by a factor of 4 so that it fits nicely on the graph. We can carry on and find the next solution.</p>
+
+</div>
+</div>
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">find_harmonic</span><span class="p">(</span><span class="mf">0.25</span><span class="p">,</span><span class="mf">0.6</span><span class="p">,</span><span class="mi">10</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+<div class="jb_output_wrapper }}">
+<div class="output_area">
+
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>5.1797588592442186e+20 6.839566902397761e+16 -6.159170713635331e+18
+5.1797588592442186e+20 -6.159170713635331e+18 2.100879103890845e+19
+2.100879103890845e+19 -6.159170713635331e+18 -1.0908943307083964e+19
+2.100879103890845e+19 -1.0908943307083964e+19 -4.3282029002060083e+18
+2.100879103890845e+19 -4.3282029002060083e+18 5.090003609531224e+18
+5.090003609531224e+18 -4.3282029002060083e+18 -3.0413512979305894e+17
+5.090003609531224e+18 -3.0413512979305894e+17 2.2065719982031242e+18
+2.2065719982031242e+18 -3.0413512979305894e+17 9.065711109416417e+17
+9.065711109416417e+17 -3.0413512979305894e+17 2.902939400183423e+17
+2.902939400183423e+17 -3.0413512979305894e+17 -9622453826884080.0
+2.902939400183423e+17 -9622453826884080.0 1.396557704160287e+17
+1.396557704160287e+17 -9622453826884080.0 6.4848434612233944e+16
+6.4848434612233944e+16 -9622453826884080.0 2.757037057450935e+16
+2.757037057450935e+16 -9622453826884080.0 8963789387736515.0
+8963789387736515.0 -9622453826884080.0 -332243137151539.2
+8963789387736515.0 -332243137151539.2 4315318804225792.0
+4315318804225792.0 -332243137151539.2 1991160624510892.0
+1991160624510892.0 -332243137151539.2 829722143801223.6
+829722143801223.6 -332243137151539.2 248580763480952.9
+248580763480952.9 -332243137151539.2 -41833330613780.586
+248580763480952.9 -41833330613780.586 103412571891015.75
+103412571891015.75 -41833330613780.586 30775827787750.79
+30775827787750.79 -41833330613780.586 -5546859904752.329
+30775827787750.79 -5546859904752.329 12621498004728.867
+12621498004728.867 -5546859904752.329 3994460072629.4917
+3994460072629.4917 -5546859904752.329 -997978224921.0474
+3994460072629.4917 -997978224921.0474 1263385556605.1323
+1263385556605.1323 -997978224921.0474 161555604600.19452
+161555604600.19452 -997978224921.0474 -435102893896.9389
+161555604600.19452 -435102893896.9389 -142615957170.4051
+161555604600.19452 -142615957170.4051 3409728982.1882124
+3409728982.1882124 -142615957170.4051 -65023756177.90813
+3409728982.1882124 -65023756177.90813 284252012188.96234
+284252012188.96234 -65023756177.90813 -47061609412.96753
+284252012188.96234 -47061609412.96753 -44525931518.67596
+284252012188.96234 -44525931518.67596 -38036343059.1627
+284252012188.96234 -38036343059.1627 411180636831.7401
+411180636831.7401 -38036343059.1627 411557053912.249
+411557053912.249 -38036343059.1627 -19005121943.19231
+411557053912.249 -19005121943.19231 407654533734.67786
+407654533734.67786 -19005121943.19231 -50073871953.62842
+407654533734.67786 -50073871953.62842 -41391735518.41519
+407654533734.67786 -41391735518.41519 407809919267.0753
+407809919267.0753 -41391735518.41519 -42605618376.27512
+407809919267.0753 -42605618376.27512 -44013358516.84866
+407809919267.0753 -44013358516.84866 -19398421384.81997
+407809919267.0753 -19398421384.81997 -34358741791.801918
+407809919267.0753 -34358741791.801918 -39662534905.30702
+407809919267.0753 -39662534905.30702 -38988590419.106926
+407809919267.0753 -38988590419.106926 -19626214086.944942
+</pre>
+</div>
+</div>
+</div>
+<div class="jb_output_wrapper }}">
+<div class="output_area">
+
+
+
+<div class="output_text output_subarea output_execute_result">
+<pre>0.3535533901520411</pre>
+</div>
+
+</div>
+</div>
+</div>
+</div>
+
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">energy_guess</span><span class="o">=</span><span class="mf">0.35355339015204545</span>  <span class="c1">#this is a higher order state</span>
+<span class="n">start</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">potential</span><span class="p">(</span><span class="o">-</span><span class="mi">20</span><span class="p">,</span><span class="mi">10</span><span class="p">)</span><span class="o">-</span><span class="n">energy_guess</span><span class="p">)])</span>
+
+<span class="n">xout</span><span class="o">=</span><span class="n">odeint</span><span class="p">(</span><span class="n">shoot</span><span class="p">,</span><span class="n">start</span><span class="p">,</span><span class="n">space</span><span class="p">,</span><span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="n">energy_guess</span><span class="p">))</span>
+<span class="n">xt</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">xout</span><span class="p">)</span>
+<span class="n">psi</span><span class="o">=</span><span class="n">xt</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">psiprime</span><span class="o">=</span><span class="n">xt</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+<span class="n">result</span><span class="o">=</span><span class="n">normalise</span><span class="p">(</span><span class="n">psi</span><span class="p">,</span><span class="n">step</span><span class="p">)</span> 
+
+<span class="n">psi</span><span class="o">=</span><span class="n">psi</span><span class="o">/</span><span class="n">result</span> <span class="c1">#again we normalise the solution.</span>
+<span class="n">psiprime</span><span class="o">=</span><span class="n">psiprime</span><span class="o">/</span><span class="n">result</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">space</span><span class="p">,</span><span class="n">psi</span><span class="p">,</span><span class="n">linewidth</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;wavefunction&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">space</span><span class="p">,</span><span class="n">psiprime</span><span class="p">,</span><span class="n">linewidth</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;derivative&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">space</span><span class="p">,</span><span class="n">potfun</span><span class="o">/</span><span class="mi">10</span><span class="p">,</span><span class="n">linewidth</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;scaled potential&#39;</span><span class="p">)</span> <span class="c1">#show the potential well as well</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">(</span><span class="o">-</span><span class="mf">0.4</span><span class="p">,</span><span class="mf">0.4</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+<div class="jb_output_wrapper }}">
+<div class="output_area">
+
+
+
+<div class="output_png output_subarea ">
+<img src="images/schrodinger2_47_0.png"
+>
+</div>
+
+</div>
+</div>
+</div>
+</div>
+
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>We know for the harmonic potential the eigenvalues are evenly spaced. In our case the spacing is about $\sqrt{2}/10$ so we expect the next solution to be at 0.49497474683058326708.</p>
+
+</div>
+</div>
+</div>
+</div>
+
+<div class="jb_cell">
+
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">energy_guess</span><span class="o">=</span><span class="mf">0.49497474683058326708</span>  <span class="c1">#no need to use find now since we know the energy spacing.</span>
+<span class="n">start</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">potential</span><span class="p">(</span><span class="o">-</span><span class="mi">20</span><span class="p">,</span><span class="mi">10</span><span class="p">)</span><span class="o">-</span><span class="n">energy_guess</span><span class="p">)])</span>
+
+<span class="n">xout</span><span class="o">=</span><span class="n">odeint</span><span class="p">(</span><span class="n">shoot</span><span class="p">,</span><span class="n">start</span><span class="p">,</span><span class="n">space</span><span class="p">,</span><span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="n">energy_guess</span><span class="p">))</span>
+<span class="n">xt</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">xout</span><span class="p">)</span>
+<span class="n">psi</span><span class="o">=</span><span class="n">xt</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">psiprime</span><span class="o">=</span><span class="n">xt</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+<span class="n">result</span><span class="o">=</span><span class="n">normalise</span><span class="p">(</span><span class="n">psi</span><span class="p">,</span><span class="n">step</span><span class="p">)</span> 
+
+<span class="n">psi</span><span class="o">=</span><span class="n">psi</span><span class="o">/</span><span class="n">result</span> <span class="c1">#again we normalise the solution.</span>
+<span class="n">psiprime</span><span class="o">=</span><span class="n">psiprime</span><span class="o">/</span><span class="n">result</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">space</span><span class="p">,</span><span class="n">psi</span><span class="p">,</span><span class="n">linewidth</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;wavefunction&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">space</span><span class="p">,</span><span class="n">psiprime</span><span class="p">,</span><span class="n">linewidth</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;derivative&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">space</span><span class="p">,</span><span class="n">potfun</span><span class="o">/</span><span class="mi">10</span><span class="p">,</span><span class="n">linewidth</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;scaled potential&#39;</span><span class="p">)</span> <span class="c1">#show the potential well as well</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">(</span><span class="o">-</span><span class="mf">0.3</span><span class="p">,</span><span class="mf">0.3</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+<div class="jb_output_wrapper }}">
+<div class="output_area">
+
+
+
+<div class="output_png output_subarea ">
+<img src="images/schrodinger2_49_0.png"
+>
+</div>
+
+</div>
+</div>
+</div>
+</div>
+
+</div>
+</div>
+
+ 
+
+
+    </main>
+    
